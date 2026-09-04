@@ -1,0 +1,4 @@
+Fixed decompression of compressed responses to honor the requested read size,
+so that a response body compressed with a high compression ratio can no longer
+be fully decompressed in memory by a single bounded ``read()``, ``read1()``,
+``read_chunked()`` or ``stream()`` call (CVE-2025-66471).
