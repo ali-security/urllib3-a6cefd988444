@@ -53,28 +53,38 @@ class Config(hypercorn.Config):
         raise OSError("failed to bind socket")
 
     def _create_urllib3_sockets(self, bind: str) -> list[socket.socket]:
-        sockets = []
+        sockets: list[socket.socket] = []
 
         bind = bind.replace("[", "").replace("]", "")
         host = bind.rsplit(":", 1)[0]
         port = 0  # Get a random port
         family = socket.AF_INET6 if ":" in host else socket.AF_UNSPEC
 
-        for res in socket.getaddrinfo(
-            host, port, family, socket.SOCK_STREAM, 0, socket.AI_PASSIVE
-        ):
-            af, socktype, proto, canonname, sockadddr = res
+        try:
+            for res in socket.getaddrinfo(
+                host, port, family, socket.SOCK_STREAM, 0, socket.AI_PASSIVE
+            ):
+                af, socktype, proto, canonname, sockadddr = res
 
-            sock = socket.socket(af, socket.SOCK_STREAM, proto)
+                sock = socket.socket(af, socket.SOCK_STREAM, proto)
+                sockets.append(sock)
 
-            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-            sock.setblocking(False)
-            sock.bind((host, port))
-            port = sock.getsockname()[1]
-            sock.set_inheritable(True)
-            sockets.append(sock)
+                sock.setblocking(False)
+                sock.bind((host, port))
+                port = sock.getsockname()[1]
+                sock.set_inheritable(True)
+        except BaseException:
+            # Close everything we bound so far, otherwise the sockets are only
+            # closed at garbage collection time, where the resulting
+            # ResourceWarning surfaces as an unraisable exception in an
+            # unrelated test. _retry_create_urllib3_sockets retries on
+            # EADDRINUSE, so this path is expected.
+            for sock in sockets:
+                sock.close()
+            raise
 
         return sockets
 

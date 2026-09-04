@@ -1,10 +1,6 @@
 name: "Scorecard"
 on:
-  branch_protection_rule:
-  schedule:
-    - cron: "0 0 * * 0"
-  push:
-    branches: ["main", "1.26.x"]
+  workflow_dispatch:
 
 permissions:
   contents: "read"
@@ -14,6 +10,7 @@ jobs:
     if: github.repository_owner == 'urllib3'
     name: "Scorecard"
     runs-on: "ubuntu-latest"
+    timeout-minutes: 10
     permissions:
       security-events: write
       id-token: write
